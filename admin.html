@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>M-MATH Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/dashboard.css">
+    <script src="static/config.js"></script>
+</head>
+<body>
+
+<div class="navbar">
+    <div class="nav-left">
+        <h2>M - MATH</h2>
+        <span class="role">ADMIN</span>
+    </div>
+    <img src="static/logo.png" class="nav-logo" alt="Logo">
+</div>
+
+<div class="container">
+
+    <div id="globalMsg"></div>
+
+    <!-- CREATE CLASS -->
+    <div class="card">
+        <h3>Create Class</h3>
+        <input type="text" id="newClassName" placeholder="Enter Class Name">
+        <br>
+        <button onclick="createClass()">Create Class</button>
+    </div>
+
+    <!-- CREATE SUBJECT -->
+    <div class="card">
+        <h3>Create Subject</h3>
+        <input type="text" id="newSubjectName" placeholder="Enter Subject Name">
+        <select id="subjectClassSelect">
+            <option value="">Select Class</option>
+        </select>
+        <button onclick="createSubject()">Create Subject</button>
+    </div>
+
+    <!-- CREATE CHAPTER -->
+    <div class="card">
+        <h3>Create Chapter</h3>
+        <input type="text" id="newChapterName" placeholder="Enter Chapter Name">
+        <select id="chapterSubjectSelect">
+            <option value="">Select Subject</option>
+        </select>
+        <button onclick="createChapter()">Create Chapter</button>
+    </div>
+
+    <!-- UPLOAD NOTE -->
+    <div class="card">
+        <h3>Upload Note</h3>
+        <input type="text" id="newNoteTitle" placeholder="Note Title">
+        <select id="noteChapterSelect">
+            <option value="">Select Chapter</option>
+        </select>
+        <input type="file" id="noteFile" accept=".pdf">
+        <br>
+        <button onclick="uploadNote()">Upload Note</button>
+    </div>
+
+    <!-- DELETE CLASS -->
+    <div class="card">
+        <h3>Delete Class</h3>
+        <select id="deleteClassSelect">
+            <option value="">Select Class</option>
+        </select>
+        <button class="delete" onclick="deleteClass()">Delete Class</button>
+    </div>
+
+    <!-- DELETE SUBJECT -->
+    <div class="card">
+        <h3>Delete Subject</h3>
+        <select id="deleteSubjectSelect">
+            <option value="">Select Subject</option>
+        </select>
+        <button class="delete" onclick="deleteSubject()">Delete Subject</button>
+    </div>
+
+    <!-- DELETE CHAPTER -->
+    <div class="card">
+        <h3>Delete Chapter</h3>
+        <select id="deleteChapterSelect">
+            <option value="">Select Chapter</option>
+        </select>
+        <button class="delete" onclick="deleteChapter()">Delete Chapter</button>
+    </div>
+
+    <!-- DELETE NOTE -->
+    <div class="card">
+        <h3>Delete Note</h3>
+        <select id="deleteNoteSelect">
+            <option value="">Select Note</option>
+        </select>
+        <button class="delete" onclick="deleteNote()">Delete Note</button>
+    </div>
+
+</div>
+
+
+<script>
+// ============================================================
+// GUARD: redirect to index if not authenticated
+// ============================================================
+if (!sessionStorage.getItem("adminAuth")) {
+    window.location.href = "index.html";
+}
+
+
+// ============================================================
+// MESSAGE HELPER
+// ============================================================
+function showMsg(text, type = "success", duration = 3000) {
+    const el = document.getElementById("globalMsg");
+    el.innerHTML = `<div class="msg ${type}">${text}</div>`;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (duration) setTimeout(() => el.innerHTML = "", duration);
+}
+
+
+// ============================================================
+// LOAD ALL DATA AND POPULATE DROPDOWNS
+// ============================================================
+let allData = [];  // cached hierarchy
+
+async function loadAll() {
+    try {
+        const res = await fetch(`${API_BASE}/api/admin/all`);
+        allData = await res.json();
+        populateDropdowns(allData);
+    } catch (err) {
+        showMsg("Failed to load data from server.", "error", 0);
+    }
+}
+
+function populateDropdowns(data) {
+    // Helper: clear and populate a select
+    function fill(id, options) {
+        const sel = document.getElementById(id);
+        sel.innerHTML = `<option value="">-- Select --</option>`;
+        options.forEach(o => {
+            const opt = document.createElement("option");
+            opt.value = o.value;
+            opt.textContent = o.label;
+            sel.appendChild(opt);
+        });
+    }
+
+    // Class dropdowns
+    const classOpts = data.map(c => ({ value: c.id, label: c.name }));
+    fill("subjectClassSelect", classOpts);
+    fill("deleteClassSelect", classOpts);
+
+    // Subject dropdowns (flat list with class prefix)
+    const subjectOpts = [];
+    const chapterOpts = [];
+    const noteOpts = [];
+
+    for (const c of data) {
+        for (const s of c.subjects) {
+            subjectOpts.push({ value: s.id, label: `${c.name} – ${s.name}` });
+            for (const ch of s.chapters) {
+                chapterOpts.push({ value: ch.id, label: `${c.name} – ${s.name} – ${ch.name}` });
+                for (const n of ch.notes) {
+                    noteOpts.push({ value: n.id, label: `${c.name} – ${s.name} – ${ch.name} – ${n.title}` });
+                }
+            }
+        }
+    }
+
+    fill("chapterSubjectSelect", subjectOpts);
+    fill("deleteSubjectSelect", subjectOpts);
+    fill("noteChapterSelect", chapterOpts);
+    fill("deleteChapterSelect", chapterOpts);
+    fill("deleteNoteSelect", noteOpts);
+}
+
+
+// ============================================================
+// CREATE CLASS
+// ============================================================
+async function createClass() {
+    const name = document.getElementById("newClassName").value.trim();
+    if (!name) { showMsg("Please enter a class name.", "error"); return; }
+
+    const fd = new FormData();
+    fd.append("name", name);
+
+    const res = await fetch(`${API_BASE}/api/classes`, { method: "POST", body: fd });
+    const data = await res.json();
+
+    if (res.ok) {
+        document.getElementById("newClassName").value = "";
+        showMsg(data.message || "Class created!");
+        loadAll();
+    } else {
+        showMsg(data.detail || "Error creating class.", "error");
+    }
+}
+
+
+// ============================================================
+// CREATE SUBJECT
+// ============================================================
+async function createSubject() {
+    const name = document.getElementById("newSubjectName").value.trim();
+    const class_id = document.getElementById("subjectClassSelect").value;
+
+    if (!name || !class_id) { showMsg("Please enter subject name and select a class.", "error"); return; }
+
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("class_id", class_id);
+
+    const res = await fetch(`${API_BASE}/api/subjects`, { method: "POST", body: fd });
+    const data = await res.json();
+
+    if (res.ok) {
+        document.getElementById("newSubjectName").value = "";
+        showMsg(data.message || "Subject created!");
+        loadAll();
+    } else {
+        showMsg(data.detail || "Error creating subject.", "error");
+    }
+}
+
+
+// ============================================================
+// CREATE CHAPTER
+// ============================================================
+async function createChapter() {
+    const name = document.getElementById("newChapterName").value.trim();
+    const subject_id = document.getElementById("chapterSubjectSelect").value;
+
+    if (!name || !subject_id) { showMsg("Please enter chapter name and select a subject.", "error"); return; }
+
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("subject_id", subject_id);
+
+    const res = await fetch(`${API_BASE}/api/chapters`, { method: "POST", body: fd });
+    const data = await res.json();
+
+    if (res.ok) {
+        document.getElementById("newChapterName").value = "";
+        showMsg(data.message || "Chapter created!");
+        loadAll();
+    } else {
+        showMsg(data.detail || "Error creating chapter.", "error");
+    }
+}
+
+
+// ============================================================
+// UPLOAD NOTE
+// ============================================================
+async function uploadNote() {
+    const title = document.getElementById("newNoteTitle").value.trim();
+    const chapter_id = document.getElementById("noteChapterSelect").value;
+    const fileInput = document.getElementById("noteFile");
+    const file = fileInput.files[0];
+
+    if (!title || !chapter_id || !file) {
+        showMsg("Please fill all fields and select a file.", "error");
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append("title", title);
+    fd.append("chapter_id", chapter_id);
+    fd.append("file", file);
+
+    showMsg("Uploading...", "success", 0);
+
+    const res = await fetch(`${API_BASE}/api/notes`, { method: "POST", body: fd });
+    const data = await res.json();
+
+    if (res.ok) {
+        document.getElementById("newNoteTitle").value = "";
+        fileInput.value = "";
+        showMsg(data.message || "Note uploaded!");
+        loadAll();
+    } else {
+        showMsg(data.detail || "Error uploading note.", "error");
+    }
+}
+
+
+// ============================================================
+// DELETE CLASS
+// ============================================================
+async function deleteClass() {
+    const id = document.getElementById("deleteClassSelect").value;
+    if (!id) { showMsg("Please select a class to delete.", "error"); return; }
+
+    const label = document.getElementById("deleteClassSelect").selectedOptions[0].textContent;
+    if (!confirm(`Delete class "${label}" and ALL its data? This cannot be undone.`)) return;
+
+    const res = await fetch(`${API_BASE}/api/classes/${id}`, { method: "DELETE" });
+    const data = await res.json();
+
+    if (res.ok) {
+        showMsg(`Class "${label}" deleted.`);
+        loadAll();
+    } else {
+        showMsg(data.detail || "Error deleting class.", "error");
+    }
+}
+
+
+// ============================================================
+// DELETE SUBJECT
+// ============================================================
+async function deleteSubject() {
+    const id = document.getElementById("deleteSubjectSelect").value;
+    if (!id) { showMsg("Please select a subject to delete.", "error"); return; }
+
+    const label = document.getElementById("deleteSubjectSelect").selectedOptions[0].textContent;
+    if (!confirm(`Delete subject "${label}"?`)) return;
+
+    const res = await fetch(`${API_BASE}/api/subjects/${id}`, { method: "DELETE" });
+    const data = await res.json();
+
+    if (res.ok) {
+        showMsg(`Subject deleted.`);
+        loadAll();
+    } else {
+        showMsg(data.detail || "Error deleting subject.", "error");
+    }
+}
+
+
+// ============================================================
+// DELETE CHAPTER
+// ============================================================
+async function deleteChapter() {
+    const id = document.getElementById("deleteChapterSelect").value;
+    if (!id) { showMsg("Please select a chapter to delete.", "error"); return; }
+
+    if (!confirm("Delete this chapter and all its notes?")) return;
+
+    const res = await fetch(`${API_BASE}/api/chapters/${id}`, { method: "DELETE" });
+    const data = await res.json();
+
+    if (res.ok) {
+        showMsg("Chapter deleted.");
+        loadAll();
+    } else {
+        showMsg(data.detail || "Error deleting chapter.", "error");
+    }
+}
+
+
+// ============================================================
+// DELETE NOTE
+// ============================================================
+async function deleteNote() {
+    const id = document.getElementById("deleteNoteSelect").value;
+    if (!id) { showMsg("Please select a note to delete.", "error"); return; }
+
+    if (!confirm("Delete this note?")) return;
+
+    const res = await fetch(`${API_BASE}/api/notes/${id}`, { method: "DELETE" });
+    const data = await res.json();
+
+    if (res.ok) {
+        showMsg("Note deleted.");
+        loadAll();
+    } else {
+        showMsg(data.detail || "Error deleting note.", "error");
+    }
+}
+
+
+// ============================================================
+// INIT
+// ============================================================
+loadAll();
+</script>
+
+</body>
+</html>

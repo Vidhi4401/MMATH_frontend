@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>M-MATH Student</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/dashboard.css">
+    <script src="static/config.js"></script>
+</head>
+<body>
+
+<div class="navbar">
+    <div class="nav-left">
+        <h2>M - MATH</h2>
+        <span class="role">STUDENT</span>
+    </div>
+    <img src="static/logo.png" class="nav-logo" alt="Logo">
+</div>
+
+<div class="container">
+
+    <h3>Select Class</h3>
+    <select id="classSelect" onchange="loadSubjects()">
+        <option value="">Select Class</option>
+    </select>
+
+    <h3>Subject</h3>
+    <select id="subjectSelect" onchange="loadChapters()" disabled>
+        <option value="">Select Subject</option>
+    </select>
+
+    <h3>Chapter</h3>
+    <select id="chapterSelect" onchange="loadNotes()" disabled>
+        <option value="">Select Chapter</option>
+    </select>
+
+    <h3>Notes</h3>
+    <div id="notesList">
+        <p style="color:#aaa; font-size:15px;">Select a chapter to see notes.</p>
+    </div>
+
+</div>
+
+
+<script>
+// ============================================================
+// LOAD CLASSES ON PAGE LOAD
+// ============================================================
+async function loadClasses() {
+    try {
+        const res = await fetch(`${API_BASE}/api/classes`);
+        const classes = await res.json();
+        const sel = document.getElementById("classSelect");
+        sel.innerHTML = `<option value="">Select Class</option>`;
+        classes.forEach(c => {
+            sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+        });
+    } catch (err) {
+        document.getElementById("notesList").innerHTML =
+            `<p style="color:#ff6b6b;">Cannot connect to server.</p>`;
+    }
+}
+
+
+// ============================================================
+// LOAD SUBJECTS
+// ============================================================
+async function loadSubjects() {
+    const classId = document.getElementById("classSelect").value;
+
+    const subjectSel = document.getElementById("subjectSelect");
+    const chapterSel = document.getElementById("chapterSelect");
+
+    subjectSel.innerHTML = `<option value="">Select Subject</option>`;
+    chapterSel.innerHTML = `<option value="">Select Chapter</option>`;
+    document.getElementById("notesList").innerHTML = `<p style="color:#aaa; font-size:15px;">Select a chapter to see notes.</p>`;
+
+    subjectSel.disabled = true;
+    chapterSel.disabled = true;
+
+    if (!classId) return;
+
+    const res = await fetch(`${API_BASE}/api/subjects/${classId}`);
+    const subjects = await res.json();
+
+    subjects.forEach(s => {
+        subjectSel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+    });
+
+    subjectSel.disabled = false;
+}
+
+
+// ============================================================
+// LOAD CHAPTERS
+// ============================================================
+async function loadChapters() {
+    const subjectId = document.getElementById("subjectSelect").value;
+
+    const chapterSel = document.getElementById("chapterSelect");
+    chapterSel.innerHTML = `<option value="">Select Chapter</option>`;
+    document.getElementById("notesList").innerHTML = `<p style="color:#aaa; font-size:15px;">Select a chapter to see notes.</p>`;
+    chapterSel.disabled = true;
+
+    if (!subjectId) return;
+
+    const res = await fetch(`${API_BASE}/api/chapters/${subjectId}`);
+    const chapters = await res.json();
+
+    chapters.forEach(c => {
+        chapterSel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+
+    chapterSel.disabled = false;
+}
+
+
+// ============================================================
+// LOAD NOTES
+// ============================================================
+async function loadNotes() {
+    const chapterId = document.getElementById("chapterSelect").value;
+    const container = document.getElementById("notesList");
+
+    if (!chapterId) {
+        container.innerHTML = `<p style="color:#aaa; font-size:15px;">Select a chapter to see notes.</p>`;
+        return;
+    }
+
+    container.innerHTML = `<p class="loading">Loading notes...</p>`;
+
+    const res = await fetch(`${API_BASE}/api/notes/${chapterId}`);
+    const notes = await res.json();
+
+    if (notes.length === 0) {
+        container.innerHTML = `<p style="color:#aaa; font-size:15px;">No notes available for this chapter.</p>`;
+        return;
+    }
+
+    container.innerHTML = "";
+
+    notes.forEach(n => {
+        container.innerHTML += `
+        <div class="card">
+            <h4 style="margin:0 0 6px; font-weight:400; font-size:17px;">${n.title}</h4>
+            <p style="margin:0 0 12px; color:#bbb; font-size:13px;">${n.filename}</p>
+            <a class="note-link" href="${API_BASE}/api/view/${n.id}" target="_blank">
+                View Online
+            </a>
+            <a class="note-link" href="${API_BASE}/api/download/${n.id}">
+                Download
+            </a>
+        </div>`;
+    });
+}
+
+
+// ============================================================
+// INIT
+// ============================================================
+loadClasses();
+</script>
+
+</body>
+</html>

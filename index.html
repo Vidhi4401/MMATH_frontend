@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>M-MATH</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="static/style.css">
+    <script src="static/config.js"></script>
+</head>
+<body>
+
+<div class="landing-container">
+
+    <img src="static/logo.png" class="main-logo" alt="M-Math Logo">
+
+    <h1 class="title">M-MATH</h1>
+
+    <p class="subtitle">Modern Mathematics Learning Platform</p>
+
+    <div class="buttons">
+
+        <button onclick="startStudent()" class="main-btn">
+            Start as Student
+        </button>
+
+        <button onclick="openAdminPopup()" class="main-btn">
+            Start as Admin
+        </button>
+
+    </div>
+
+</div>
+
+
+<!-- ADMIN SECRET POPUP -->
+
+<div id="adminPopup" class="popup">
+
+    <div class="popup-content">
+
+        <h3>Enter Admin Secret Key</h3>
+
+        <input type="password" id="adminSecret" placeholder="Secret Key" required>
+
+        <div class="error-msg" id="adminError"></div>
+
+        <div>
+            <button onclick="submitAdminLogin()">Enter</button>
+            <button onclick="closeAdminPopup()">Cancel</button>
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+function startStudent() {
+    window.location.href = "student.html";
+}
+
+function openAdminPopup() {
+    document.getElementById("adminPopup").style.display = "block";
+    document.getElementById("adminSecret").focus();
+    document.getElementById("adminError").textContent = "";
+}
+
+function closeAdminPopup() {
+    document.getElementById("adminPopup").style.display = "none";
+}
+
+// Allow pressing Enter in the password field
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("adminSecret").addEventListener("keydown", e => {
+        if (e.key === "Enter") submitAdminLogin();
+    });
+});
+
+async function submitAdminLogin() {
+    const secret = document.getElementById("adminSecret").value.trim();
+    const errorEl = document.getElementById("adminError");
+
+    if (!secret) {
+        errorEl.textContent = "Please enter your secret key.";
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("secret", secret);
+
+    try {
+        const res = await fetch(`${API_BASE}/api/admin-login`, {
+            method: "POST",
+            body: formData
+        });
+
+        if (res.ok) {
+            // Store a session flag so admin page knows it's authenticated
+            sessionStorage.setItem("adminAuth", "true");
+            window.location.href = "admin.html";
+        } else {
+            errorEl.textContent = "Invalid secret key. Try again.";
+            document.getElementById("adminSecret").value = "";
+            document.getElementById("adminSecret").focus();
+        }
+    } catch (err) {
+        errorEl.textContent = "Cannot connect to server. Please try again.";
+    }
+}
+</script>
+
+</body>
+</html>
