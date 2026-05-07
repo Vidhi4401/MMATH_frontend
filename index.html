@@ -40,7 +40,10 @@
 
         <h3>Enter Admin Secret Key</h3>
 
-        <input type="password" id="adminSecret" placeholder="Secret Key" required>
+        <div style="position:relative;">
+            <input type="password" id="adminSecret" placeholder="Secret Key" required style="padding-right:48px;">
+            <span onclick="togglePassword()" id="eyeBtn" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:18px;user-select:none;">👁️</span>
+        </div>
 
         <div class="error-msg" id="adminError"></div>
 
@@ -55,6 +58,18 @@
 
 
 <script>
+function togglePassword() {
+    const input = document.getElementById("adminSecret");
+    const btn = document.getElementById("eyeBtn");
+    if (input.type === "password") {
+        input.type = "text";
+        btn.textContent = "🙈";
+    } else {
+        input.type = "password";
+        btn.textContent = "👁️";
+    }
+}
+
 function startStudent() {
     window.location.href = "student.html";
 }
